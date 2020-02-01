@@ -165,14 +165,14 @@ const asyncGetProductAttributes = async (nodes, WooCommerce, verbose) => {
     if (node.__type === 'wcProductsAttributes') {
       let page = 1;
       let pages = 1;
-      node.options = [];
+      node.attribute_options = [];
       const attributes_path = `products/attributes/${node.wordpress_id}/terms`;
       do {
         const args = { page, per_page: 100 };
         await WooCommerce.get(attributes_path, args)
           .then(response => {
             if (response.status === 200) {
-              node.options = [...node.options, ...response.data];
+              node.attribute_options = [...node.attribute_options, ...response.data];
               pages = parseInt(response.headers['x-wp-totalpages']);
               page++;
               if (verbose) {

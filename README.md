@@ -41,7 +41,7 @@ plugins:[
         consumer_secret: <secret>,
       },
       // Array of strings with fields you'd like to create nodes for...
-      fields: ['products', 'products/categories'],
+      fields: ['products', 'products/categories',  'products/attributes'],
       // Send the API keys as query string parameters instead of using the authorization header
       // OPTIONAL: defaults to false
       query_string_auth: false,
@@ -70,6 +70,7 @@ plugins:[
 
 Definitive: 
 - Products
+- Products Attributes
 - Customers
 - Orders
 - Reports
@@ -99,6 +100,31 @@ For example, to get product categories: including 'products/categories' in field
             // childImageSharp ... etc
           }
         }
+      }
+    }
+  }
+}
+```
+
+### All products attributes with terms:
+```graphql
+{
+  allWcProductsAttributes {
+    nodes {
+      name
+      wordpress_id
+      order_by
+      position
+      slug
+      type
+      variation
+      has_archives
+      attribute_options {
+        count
+        description
+        menu_order
+        name
+        slug
       }
     }
   }

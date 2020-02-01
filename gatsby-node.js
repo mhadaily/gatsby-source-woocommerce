@@ -9,6 +9,7 @@ const {
   mapRelatedProducts,
   mapGroupedProducts,
   asyncGetProductVariations,
+  asyncGetProductAttributes,
   timeStampedLog,
 } = require("./helpers");
 
@@ -116,6 +117,7 @@ exports.sourceNodes = async (
       }
     }
     nodes = await asyncGetProductVariations(nodes, WooCommerce, verbose);
+    nodes = await asyncGetProductAttributes(nodes, WooCommerce, verbose);
     nodes = await mapMediaToNodes({
       nodes,
       store,

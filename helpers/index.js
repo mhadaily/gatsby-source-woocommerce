@@ -5,24 +5,24 @@ const { createRemoteFileNode } = require(`gatsby-source-filesystem`);
  *
  * @param {string} message
  */
-const timeStampedLog = (message) => {
-  console.log(`${(new Date()).toISOString().match(/(\d\d\:\d\d\:\d\d\.\d\d\d\w)/)[0]} > ${message}`)
-}
+const timeStampedLog = message => {
+  console.log(`${new Date().toISOString().match(/(\d\d\:\d\d\:\d\d\.\d\d\d\w)/)[0]} > ${message}`);
+};
 
 // @8ctopotamus customization
-const imageExtensions = [".jpg", ".jpeg", ".png", ".gif"];
+const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
 
 let processNodeTimer = 0;
 const processNode = (createContentDigest, node, verbose, processNodeStartTime) => {
   if (0 === processNodeTimer) {
-    processNodeTimer = processNodeStartTime
+    processNodeTimer = processNodeStartTime;
   }
 
   const { __type } = node;
   delete node.__type;
 
-  if (__type === "wcProducts" && node.categories) {
-    node.categories.forEach((category) => {
+  if (__type === 'wcProducts' && node.categories) {
+    node.categories.forEach(category => {
       // Add wordpress_id field when there is no
       // categories connection to keep the id access
       // consistent between just products & products with
@@ -40,19 +40,22 @@ const processNode = (createContentDigest, node, verbose, processNodeStartTime) =
     children: [],
     internal: {
       type: __type,
-      contentDigest: createContentDigest(nodeContent),
-    },
+      contentDigest: createContentDigest(nodeContent)
+    }
   });
 
   if (verbose) {
     //print progress every 1500 ms
-    if ((new Date().getTime() - processNodeTimer) > 1500) {
+    if (new Date().getTime() - processNodeTimer > 1500) {
       processNodeTimer = new Date().getTime();
-      if (__type === "wcProducts") {
-        timeStampedLog(`gatsby-source-woocommerce: Importing product { id: ${node.id}, name: ${node.name} }, with ${node.variations.length} variations`);
-      }
-      else {
-        timeStampedLog(`gatsby-source-woocommerce: Importing { id: ${node.id}, name: ${node.name} }`);
+      if (__type === 'wcProducts') {
+        timeStampedLog(
+          `gatsby-source-woocommerce: Importing product { id: ${node.id}, name: ${node.name} }, with ${node.variations.length} variations`
+        );
+      } else {
+        timeStampedLog(
+          `gatsby-source-woocommerce: Importing { id: ${node.id}, name: ${node.name} }`
+        );
       }
     }
   }
@@ -71,13 +74,15 @@ const processNode = (createContentDigest, node, verbose, processNodeStartTime) =
  */
 const asyncGetProductVariations = async (nodes, WooCommerce, verbose) => {
   if (verbose) {
-    timeStampedLog(`gatsby-source-woocommerce: Fetching product variations for ${nodes.length} nodes`);
+    timeStampedLog(
+      `gatsby-source-woocommerce: Fetching product variations for ${nodes.length} nodes`
+    );
   }
   const asyncGetProductVariationsStartTime = new Date().getTime();
   let asyncGetProductVariationsTimer = asyncGetProductVariationsStartTime;
   const processedNodes = [];
-  const promises = nodes.map(async (node) => {
-    if (node.__type === "wcProducts") {
+  const promises = nodes.map(async node => {
+    if (node.__type === 'wcProducts') {
       if (node.variations && node.variations.length) {
         let page = 1;
         let pages = 1;
@@ -86,23 +91,17 @@ const asyncGetProductVariations = async (nodes, WooCommerce, verbose) => {
 
         do {
           const args = { page, per_page: 100 };
-          await WooCommerce.get(
-            variations_path,
-            args
-          )
-            .then((response) => {
+          await WooCommerce.get(variations_path, args)
+            .then(response => {
               if (response.status === 200) {
-                node.product_variations = [
-                  ...node.product_variations,
-                  ...response.data,
-                ];
-                pages = parseInt(response.headers["x-wp-totalpages"]);
+                node.product_variations = [...node.product_variations, ...response.data];
+                pages = parseInt(response.headers['x-wp-totalpages']);
                 page++;
                 if (verbose) {
                   //print progress every 1500 ms
-                  if ((new Date().getTime() - asyncGetProductVariationsTimer) > 1500) {
-                    asyncGetProductVariationsTimer = new Date().getTime()
-                    timeStampedLog(`gatsby-source-woocommerce: Retrieved ${variations_path}...`)
+                  if (new Date().getTime() - asyncGetProductVariationsTimer > 1500) {
+                    asyncGetProductVariationsTimer = new Date().getTime();
+                    timeStampedLog(`gatsby-source-woocommerce: Retrieved ${variations_path}...`);
                   }
                 }
               } else {
@@ -113,7 +112,7 @@ const asyncGetProductVariations = async (nodes, WooCommerce, verbose) => {
                 pages = 0;
               }
             })
-            .catch((error) => {
+            .catch(error => {
               console.warn(`
               Warning: error while fetching variations for ${node.name}.
               Error: ${error}.
@@ -125,17 +124,97 @@ const asyncGetProductVariations = async (nodes, WooCommerce, verbose) => {
         node.product_variations = [];
       }
     }
-    return new Promise((res, rej) => { res(node) })
-  })
+    return new Promise((res, rej) => {
+      res(node);
+    });
+  });
 
-  await Promise.all(promises)
-    .then((results) => {
-      results.forEach(async (node) => {
-        processedNodes.push(node);
-      })
-    })
+  await Promise.all(promises).then(results => {
+    results.forEach(async node => {
+      processedNodes.push(node);
+    });
+  });
 
-  timeStampedLog(`gatsby-source-woocommerce: ${promises.length} product variations retrieved for ${nodes.length} nodes in ${(new Date().getTime() - asyncGetProductVariationsStartTime) / 1000}s`);
+  timeStampedLog(
+    `gatsby-source-woocommerce: ${promises.length} product variations retrieved for ${
+      nodes.length
+    } nodes in ${(new Date().getTime() - asyncGetProductVariationsStartTime) / 1000}s`
+  );
+  return processedNodes;
+};
+
+/**
+ * Get product attributes terms.
+ * Asynchronous function.
+ *
+ * @param {array} nodes
+ * @param {object} WooCommerce
+ *
+ * @return {array} Processed nodes
+ */
+const asyncGetProductAttributes = async (nodes, WooCommerce, verbose) => {
+  if (verbose) {
+    timeStampedLog(
+      `gatsby-source-woocommerce: Fetching product attributes for ${nodes.length} nodes`
+    );
+  }
+  const asyncGetProductAttributesStartTime = new Date().getTime();
+  let asyncGetProductAttributesTimer = asyncGetProductAttributesStartTime;
+  const processedNodes = [];
+  const promises = nodes.map(async node => {
+    if (node.__type === 'wcProductsAttributes') {
+      let page = 1;
+      let pages = 1;
+      node.options = [];
+      const attributes_path = `products/attributes/${node.wordpress_id}/terms`;
+      do {
+        const args = { page, per_page: 100 };
+        await WooCommerce.get(attributes_path, args)
+          .then(response => {
+            if (response.status === 200) {
+              node.options = [...node.options, ...response.data];
+              pages = parseInt(response.headers['x-wp-totalpages']);
+              page++;
+              if (verbose) {
+                //print progress every 1500 ms
+                if (new Date().getTime() - asyncGetProductAttributesTimer > 1500) {
+                  asyncGetProductAttributesTimer = new Date().getTime();
+                  timeStampedLog(`gatsby-source-woocommerce: Retrieved ${attributes_path}...`);
+                }
+              }
+            } else {
+              console.warn(`
+                Warning: error while fetching attributes terms for ${node.name}.
+                Error data: ${response.data}.
+              `);
+              pages = 0;
+            }
+          })
+          .catch(error => {
+            console.warn(`
+              Warning: error while fetching attributes terms for ${node.name}.
+              Error: ${error}.
+            `);
+            pages = 0;
+          });
+      } while (page <= pages);
+    }
+    return new Promise((res, rej) => {
+      res(node);
+    });
+  });
+
+  await Promise.all(promises).then(results => {
+    results.forEach(async node => {
+      processedNodes.push(node);
+    });
+  });
+
+  timeStampedLog(
+    `gatsby-source-woocommerce: ${promises.length} product attributes terms retrieved for ${
+      nodes.length
+    } nodes in ${(new Date().getTime() - asyncGetProductAttributesStartTime) / 1000}s`
+  );
   return processedNodes;
 };
 
@@ -145,15 +224,13 @@ const asyncGetProductVariations = async (nodes, WooCommerce, verbose) => {
  *
  * @return {array} Processed nodes
  */
-const mapProductsToCategories = (nodes) => {
-  const categories = nodes.filter(
-    (node) => node.__type === "wcProductsCategories"
-  );
+const mapProductsToCategories = nodes => {
+  const categories = nodes.filter(node => node.__type === 'wcProductsCategories');
 
-  return nodes.map((node) => {
-    if (categories.length && node.__type === "wcProducts") {
+  return nodes.map(node => {
+    if (categories.length && node.__type === 'wcProducts') {
       node.categories.forEach(({ id }) => {
-        const category = categories.find((c) => id === c.wordpress_id);
+        const category = categories.find(c => id === c.wordpress_id);
         if (category) {
           if (!node.categories___NODE) {
             // Initialise the connection array if necessary
@@ -187,13 +264,13 @@ const mapProductsToCategories = (nodes) => {
  *
  * @return {array} Processed nodes
  */
-const mapProductsToTags = (nodes) => {
-  const tags = nodes.filter((node) => node.__type === "wcProductsTags");
+const mapProductsToTags = nodes => {
+  const tags = nodes.filter(node => node.__type === 'wcProductsTags');
 
-  return nodes.map((node) => {
-    if (tags.length && node.__type === "wcProducts") {
+  return nodes.map(node => {
+    if (tags.length && node.__type === 'wcProducts') {
       node.tags.forEach(({ id }) => {
-        const tag = tags.find((t) => id === t.wordpress_id);
+        const tag = tags.find(t => id === t.wordpress_id);
         if (tag) {
           if (!node.tags___NODE) {
             // Initialise the connection array if necessary
@@ -228,18 +305,16 @@ const mapProductsToTags = (nodes) => {
  *
  * @return {array} Processed nodes
  */
-const mapRelatedProducts = (nodes) => {
-  const products = nodes.filter((node) => node.__type === "wcProducts");
+const mapRelatedProducts = nodes => {
+  const products = nodes.filter(node => node.__type === 'wcProducts');
 
-  return nodes.map((node) => {
-    if (node.__type === "wcProducts") {
+  return nodes.map(node => {
+    if (node.__type === 'wcProducts') {
       const related_products = node.related_ids
-        ? node.related_ids.map((id) => {
-          const product = products.find(
-            (product) => product.wordpress_id === id
-          );
-          return product ? product.id : null;
-        })
+        ? node.related_ids.map(id => {
+            const product = products.find(product => product.wordpress_id === id);
+            return product ? product.id : null;
+          })
         : null;
       if (related_products) {
         node.related_products___NODE = related_products;
@@ -258,18 +333,16 @@ const mapRelatedProducts = (nodes) => {
  *
  * @return {array} Processed nodes
  */
-const mapGroupedProducts = (nodes) => {
-  const products = nodes.filter((node) => node.__type === "wcProducts");
+const mapGroupedProducts = nodes => {
+  const products = nodes.filter(node => node.__type === 'wcProducts');
 
-  return nodes.map((node) => {
-    if (node.__type === "wcProducts") {
+  return nodes.map(node => {
+    if (node.__type === 'wcProducts') {
       const grouped_products = node.grouped_products
-        ? node.grouped_products.map((id) => {
-          const product = products.find(
-            (product) => product.wordpress_id === id
-          );
-          return product ? product.id : null;
-        })
+        ? node.grouped_products.map(id => {
+            const product = products.find(product => product.wordpress_id === id);
+            return product ? product.id : null;
+          })
         : null;
       if (grouped_products) {
         node.grouped_products_nodes___NODE = grouped_products;
@@ -289,25 +362,17 @@ const mapGroupedProducts = (nodes) => {
  *
  * @return The camelCase field name
  */
-const normaliseFieldName = (name) => {
-  const parts = name.split("/");
+const normaliseFieldName = name => {
+  const parts = name.split('/');
   return parts.reduce((whole, partial) => {
-    if (whole === "") {
+    if (whole === '') {
       return whole.concat(partial);
     }
     return whole.concat(partial[0].toUpperCase() + partial.slice(1));
-  }, "");
+  }, '');
 };
 
-const downloadMedia = async ({
-  n,
-  image,
-  store,
-  cache,
-  touchNode,
-  createNode,
-  createNodeId,
-}) => {
+const downloadMedia = async ({ n, image, store, cache, touchNode, createNode, createNodeId }) => {
   let fileNodeID;
   const mediaDataCacheKey = `wordpress-media-${image.id}`;
   const cacheMediaData = await cache.get(mediaDataCacheKey);
@@ -325,7 +390,7 @@ const downloadMedia = async ({
         cache,
         createNode,
         createNodeId,
-        parentNodeId: n.id.toString(),
+        parentNodeId: n.id.toString()
       });
 
       if (fileNode) {
@@ -333,7 +398,7 @@ const downloadMedia = async ({
 
         await cache.set(mediaDataCacheKey, {
           fileNodeID,
-          modified: n.modified,
+          modified: n.modified
         });
       }
     } catch (e) {
@@ -354,9 +419,8 @@ const downloadACFMedia = async ({
   cache,
   touchNode,
   createNode,
-  createNodeId,
+  createNodeId
 }) => {
-
   let fileNodeID;
   const mediaDataCacheKey = `woocommerce-acf-media-${src}`;
   const cacheMediaData = await cache.get(mediaDataCacheKey);
@@ -374,7 +438,7 @@ const downloadACFMedia = async ({
         cache,
         createNode,
         createNodeId,
-        parentNodeId: n.id.toString(),
+        parentNodeId: n.id.toString()
       });
 
       if (fileNode) {
@@ -382,7 +446,7 @@ const downloadACFMedia = async ({
 
         await cache.set(mediaDataCacheKey, {
           fileNodeID,
-          modified: n.modified,
+          modified: n.modified
         });
       }
     } catch (e) {
@@ -390,27 +454,20 @@ const downloadACFMedia = async ({
     }
   }
   if (fileNodeID) {
-    n.acf[field + "_localFile___NODE"] = fileNodeID;
+    n.acf[field + '_localFile___NODE'] = fileNodeID;
   }
 };
 
-const mapMediaToNodes = async ({
-  nodes,
-  store,
-  cache,
-  createNode,
-  createNodeId,
-  touchNode,
-}) => {
+const mapMediaToNodes = async ({ nodes, store, cache, createNode, createNodeId, touchNode }) => {
   return Promise.all(
-    nodes.map(async (n) => {
+    nodes.map(async n => {
       const commonParams = {
         n,
         store,
         cache,
         touchNode,
         createNode,
-        createNodeId,
+        createNodeId
       };
 
       if (n.product_variations && n.product_variations.length) {
@@ -419,7 +476,7 @@ const mapMediaToNodes = async ({
           if (image) {
             await downloadMedia({
               image,
-              ...commonParams,
+              ...commonParams
             });
           }
         }
@@ -427,15 +484,15 @@ const mapMediaToNodes = async ({
 
       // @8ctopotamus customization
       if (n.acf) {
-        Object.entries(n.acf).forEach(async (entry) => {
+        Object.entries(n.acf).forEach(async entry => {
           const [field, val] = entry;
-          if (val && typeof val === "string") {
-            const isImage = imageExtensions.some((ext) => val.includes(ext));
+          if (val && typeof val === 'string') {
+            const isImage = imageExtensions.some(ext => val.includes(ext));
             if (isImage) {
               await downloadACFMedia({
                 field,
                 src: val,
-                ...commonParams,
+                ...commonParams
               });
             }
           }
@@ -446,7 +503,7 @@ const mapMediaToNodes = async ({
         for (let image of n.images) {
           await downloadMedia({
             image,
-            ...commonParams,
+            ...commonParams
           });
         }
         return n;
@@ -454,7 +511,7 @@ const mapMediaToNodes = async ({
         const { image } = n;
         await downloadMedia({
           image,
-          ...commonParams,
+          ...commonParams
         });
 
         return n;
@@ -474,5 +531,6 @@ module.exports = {
   mapRelatedProducts,
   mapGroupedProducts,
   asyncGetProductVariations,
-  timeStampedLog,
+  asyncGetProductAttributes,
+  timeStampedLog
 };
